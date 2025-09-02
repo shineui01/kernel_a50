@@ -18,10 +18,13 @@
 #include <scsi/scsi_dbg.h>
 #include <linux/sec_debug.h>
 
+<<<<<<< HEAD
 #if defined(CONFIG_SEC_ABC)  
 #include <linux/sti/abc_common.h>  
 #endif   
 
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 static char *scsi_log_reserve_buffer(size_t *len)
 {
 	*len = 128;

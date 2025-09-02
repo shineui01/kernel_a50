@@ -437,6 +437,160 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_enable(port);
 	}
+<<<<<<< HEAD
+=======
+
+	tx_enabled(port) = 0;
+	ourport->tx_in_progress = 0;
+
+	if (port->flags & UPF_CONS_FLOW)
+		s3c24xx_serial_rx_enable(port);
+
+	ourport->tx_mode = 0;
+}
+
+static void s3c24xx_serial_start_next_tx(struct s3c24xx_uart_port *ourport);
+
+static void s3c24xx_serial_tx_dma_complete(void *args)
+{
+	struct s3c24xx_uart_port *ourport = args;
+	struct uart_port *port = &ourport->port;
+	struct circ_buf *xmit = &port->state->xmit;
+	struct s3c24xx_uart_dma *dma = ourport->dma;
+	struct dma_tx_state state;
+	unsigned long flags;
+	int count;
+
+
+	dmaengine_tx_status(dma->tx_chan, dma->tx_cookie, &state);
+	count = dma->tx_bytes_requested - state.residue;
+	async_tx_ack(dma->tx_desc);
+
+	dma_sync_single_for_cpu(ourport->port.dev, dma->tx_transfer_addr,
+				dma->tx_size, DMA_TO_DEVICE);
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
+	port->icount.tx += count;
+	ourport->tx_in_progress = 0;
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(port);
+
+	s3c24xx_serial_start_next_tx(ourport);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+static void enable_tx_dma(struct s3c24xx_uart_port *ourport)
+{
+	struct uart_port *port = &ourport->port;
+	u32 ucon;
+
+	/* Mask Tx interrupt */
+	if (s3c24xx_serial_has_interrupt_mask(port))
+		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
+	else
+		disable_irq_nosync(ourport->tx_irq);
+
+	/* Enable tx dma mode */
+	ucon = rd_regl(port, S3C2410_UCON);
+	ucon &= ~(S3C64XX_UCON_TXBURST_MASK | S3C64XX_UCON_TXMODE_MASK);
+	ucon |= S3C64XX_UCON_TXBURST_1;
+	ucon |= S3C64XX_UCON_TXMODE_DMA;
+	wr_regl(port,  S3C2410_UCON, ucon);
+
+	ourport->tx_mode = S3C24XX_TX_DMA;
+}
+
+static void enable_tx_pio(struct s3c24xx_uart_port *ourport)
+{
+	struct uart_port *port = &ourport->port;
+	u32 ucon, ufcon;
+
+	/* Set ufcon txtrig */
+	ourport->tx_in_progress = S3C24XX_TX_PIO;
+	ufcon = rd_regl(port, S3C2410_UFCON);
+	wr_regl(port,  S3C2410_UFCON, ufcon);
+
+	/* Enable tx pio mode */
+	ucon = rd_regl(port, S3C2410_UCON);
+	ucon &= ~(S3C64XX_UCON_TXMODE_MASK);
+	ucon |= S3C64XX_UCON_TXMODE_CPU;
+	wr_regl(port,  S3C2410_UCON, ucon);
+
+	/* Unmask Tx interrupt */
+	if (s3c24xx_serial_has_interrupt_mask(port))
+		s3c24xx_clear_bit(port, S3C64XX_UINTM_TXD,
+				  S3C64XX_UINTM);
+	else
+		enable_irq(ourport->tx_irq);
+
+	ourport->tx_mode = S3C24XX_TX_PIO;
+}
+
+static void s3c24xx_serial_start_tx_pio(struct s3c24xx_uart_port *ourport)
+{
+	if (ourport->tx_mode != S3C24XX_TX_PIO)
+		enable_tx_pio(ourport);
+}
+
+static int s3c24xx_serial_start_tx_dma(struct s3c24xx_uart_port *ourport,
+				      unsigned int count)
+{
+	struct uart_port *port = &ourport->port;
+	struct circ_buf *xmit = &port->state->xmit;
+	struct s3c24xx_uart_dma *dma = ourport->dma;
+
+
+	if (ourport->tx_mode != S3C24XX_TX_DMA)
+		enable_tx_dma(ourport);
+
+	dma->tx_size = count & ~(dma_get_cache_alignment() - 1);
+	dma->tx_transfer_addr = dma->tx_addr + xmit->tail;
+
+	dma_sync_single_for_device(ourport->port.dev, dma->tx_transfer_addr,
+				dma->tx_size, DMA_TO_DEVICE);
+
+	dma->tx_desc = dmaengine_prep_slave_single(dma->tx_chan,
+				dma->tx_transfer_addr, dma->tx_size,
+				DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
+	if (!dma->tx_desc) {
+		dev_err(ourport->port.dev, "Unable to get desc for Tx\n");
+		return -EIO;
+	}
+
+	dma->tx_desc->callback = s3c24xx_serial_tx_dma_complete;
+	dma->tx_desc->callback_param = ourport;
+	dma->tx_bytes_requested = dma->tx_size;
+
+	ourport->tx_in_progress = S3C24XX_TX_DMA;
+	dma->tx_cookie = dmaengine_submit(dma->tx_desc);
+	dma_async_issue_pending(dma->tx_chan);
+	return 0;
+}
+
+static void s3c24xx_serial_start_next_tx(struct s3c24xx_uart_port *ourport)
+{
+	struct uart_port *port = &ourport->port;
+	struct circ_buf *xmit = &port->state->xmit;
+	unsigned long count;
+
+	/* Get data size up to the end of buffer */
+	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+
+	if (!count) {
+		s3c24xx_serial_stop_tx(port);
+		return;
+	}
+
+	if (!ourport->dma || !ourport->dma->tx_chan ||
+	    count < ourport->min_dma_size ||
+	    xmit->tail & (dma_get_cache_alignment() - 1))
+		s3c24xx_serial_start_tx_pio(ourport);
+	else
+		s3c24xx_serial_start_tx_dma(ourport, count);
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 }
 
 static void s3c24xx_serial_start_tx(struct uart_port *port)
@@ -517,6 +671,55 @@ static int s3c24xx_serial_tx_fifocnt(struct s3c24xx_uart_port *ourport,
 static irqreturn_t
 s3c24xx_serial_rx_chars(int irq, void *dev_id)
 {
+<<<<<<< HEAD
+=======
+	struct uart_port *port = &ourport->port;
+	unsigned int ucon;
+
+	/* set Rx mode to DMA mode */
+	ucon = rd_regl(port, S3C2410_UCON);
+	ucon &= ~(S3C64XX_UCON_RXBURST_MASK |
+			S3C64XX_UCON_TIMEOUT_MASK |
+			S3C64XX_UCON_EMPTYINT_EN |
+			S3C64XX_UCON_DMASUS_EN |
+			S3C64XX_UCON_TIMEOUT_EN |
+			S3C64XX_UCON_RXMODE_MASK);
+	ucon |= S3C64XX_UCON_RXBURST_1 |
+			0xf << S3C64XX_UCON_TIMEOUT_SHIFT |
+			S3C64XX_UCON_EMPTYINT_EN |
+			S3C64XX_UCON_TIMEOUT_EN |
+			S3C64XX_UCON_RXMODE_DMA;
+	wr_regl(port, S3C2410_UCON, ucon);
+
+	ourport->rx_mode = S3C24XX_RX_DMA;
+}
+
+static void enable_rx_pio(struct s3c24xx_uart_port *ourport)
+{
+	struct uart_port *port = &ourport->port;
+	unsigned int ucon;
+
+	/* set Rx mode to DMA mode */
+	ucon = rd_regl(port, S3C2410_UCON);
+	ucon &= ~(S3C64XX_UCON_TIMEOUT_MASK |
+			S3C64XX_UCON_EMPTYINT_EN |
+			S3C64XX_UCON_DMASUS_EN |
+			S3C64XX_UCON_TIMEOUT_EN |
+			S3C64XX_UCON_RXMODE_MASK);
+	ucon |= 0xf << S3C64XX_UCON_TIMEOUT_SHIFT |
+			S3C64XX_UCON_TIMEOUT_EN |
+			S3C64XX_UCON_RXMODE_CPU;
+	wr_regl(port, S3C2410_UCON, ucon);
+
+	ourport->rx_mode = S3C24XX_RX_PIO;
+}
+
+static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport);
+
+static irqreturn_t s3c24xx_serial_rx_chars_dma(void *dev_id)
+{
+	unsigned int utrstat, ufstat, received;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
@@ -682,11 +885,16 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 		port->icount.tx++;
 	}
 
+<<<<<<< HEAD
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS) {
 		spin_unlock_irqrestore(&port->lock, flags);
 		uart_write_wakeup(port);
 		spin_lock_irqsave(&port->lock, flags);
 	}
+=======
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(port);
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	if (uart_circ_empty(xmit))
 		s3c24xx_serial_stop_tx(port);
@@ -754,11 +962,10 @@ static unsigned int s3c24xx_serial_tx_empty(struct uart_port *port)
 		if ((ufstat & info->tx_fifomask) != 0 ||
 		    (ufstat & info->tx_fifofull))
 			return 0;
-
-		return 1;
+		return TIOCSER_TEMT;
 	}
 
-	return s3c24xx_serial_txempty_nofifo(port);
+	return s3c24xx_serial_txempty_nofifo(port) ? TIOCSER_TEMT : 0;
 }
 
 /* no modem control lines */
@@ -967,14 +1174,19 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 {
 	struct s3c24xx_uart_info *info = ourport->info;
 	unsigned long rate;
+<<<<<<< HEAD
 	unsigned int cnt, baud, quot, clk_sel, best_quot = 0;
+=======
+	unsigned int cnt, baud, quot, best_quot = 0;
+	char clkname[MAX_CLK_NAME_LENGTH];
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	int calc_deviation, deviation = (1 << 30) - 1;
 	int ret;
 
-	clk_sel = (ourport->cfg->clk_sel) ? ourport->cfg->clk_sel :
-			ourport->info->def_clk_sel;
 	for (cnt = 0; cnt < info->num_clks; cnt++) {
-		if (!(clk_sel & (1 << cnt)))
+		/* Keep selected clock if provided */
+		if (ourport->cfg->clk_sel &&
+			!(ourport->cfg->clk_sel & (1 << cnt)))
 			continue;
 
 		rate = clk_get_rate(ourport->clk);
@@ -996,8 +1208,17 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 
 		dev_info(&ourport->pdev->dev, " Clock rate : %ld\n", rate);
 
+<<<<<<< HEAD
 		if (!rate)
+=======
+		rate = clk_get_rate(clk);
+		if (!rate) {
+			dev_err(ourport->port.dev,
+				"Failed to get clock rate for %s.\n", clkname);
+			clk_put(clk);
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 			continue;
+		}
 
 		if (ourport->info->has_divslot) {
 			unsigned long div = rate / req_baud;
@@ -1023,10 +1244,22 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 			calc_deviation = -calc_deviation;
 
 		if (calc_deviation < deviation) {
+<<<<<<< HEAD
 			*best_clk = ourport->clk;
+=======
+			/*
+			 * If we find a better clk, release the previous one, if
+			 * any.
+			 */
+			if (!IS_ERR(*best_clk))
+				clk_put(*best_clk);
+			*best_clk = clk;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 			best_quot = quot;
 			*clk_num = cnt;
 			deviation = calc_deviation;
+		} else {
+			clk_put(clk);
 		}
 	}
 
@@ -1586,6 +1819,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ourport->tx_irq = ret + 1;
 	}
 
+<<<<<<< HEAD
 	ret = platform_get_irq(platdev, 1);
 	if (ret > 0)
 		ourport->tx_irq = ret;
@@ -1599,6 +1833,26 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	if (of_property_read_u32(platdev->dev.of_node, "samsung,source-clock-rate", &ourport->src_clk_rate)){
 		dev_err(&platdev->dev, "No explicit src-clk. Use default src-clk\n");
 		ourport->src_clk_rate = DEFAULT_SOURCE_CLK;
+=======
+	if (!s3c24xx_serial_has_interrupt_mask(port)) {
+		ret = platform_get_irq(platdev, 1);
+		if (ret > 0)
+			ourport->tx_irq = ret;
+	}
+	/*
+	 * DMA is currently supported only on DT platforms, if DMA properties
+	 * are specified.
+	 */
+	if (platdev->dev.of_node && of_find_property(platdev->dev.of_node,
+						     "dmas", NULL)) {
+		ourport->dma = devm_kzalloc(port->dev,
+					    sizeof(*ourport->dma),
+					    GFP_KERNEL);
+		if (!ourport->dma) {
+			ret = -ENOMEM;
+			goto err;
+		}
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	}
 
 	snprintf(clkname, sizeof(clkname), "ipclk_uart%d", ourport->port.line);
@@ -2196,6 +2450,16 @@ static int s3c24xx_serial_resume(struct device *dev)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
+<<<<<<< HEAD
+=======
+		clk_prepare_enable(ourport->clk);
+		if (!IS_ERR(ourport->baudclk))
+			clk_prepare_enable(ourport->baudclk);
+		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
+		if (!IS_ERR(ourport->baudclk))
+			clk_disable_unprepare(ourport->baudclk);
+		clk_disable_unprepare(ourport->clk);
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 		uart_resume_port(&s3c24xx_uart_drv, port);
 
@@ -2223,9 +2487,19 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 				uintm &= ~S3C64XX_UINTM_TXD_MSK;
 			if (rx_enabled(port))
 				uintm &= ~S3C64XX_UINTM_RXD_MSK;
+<<<<<<< HEAD
 			uart_clock_enable(ourport);
 			wr_regl(port, S3C64XX_UINTM, uintm);
 			uart_clock_disable(ourport);
+=======
+			clk_prepare_enable(ourport->clk);
+			if (!IS_ERR(ourport->baudclk))
+				clk_prepare_enable(ourport->baudclk);
+			wr_regl(port, S3C64XX_UINTM, uintm);
+			if (!IS_ERR(ourport->baudclk))
+				clk_disable_unprepare(ourport->baudclk);
+			clk_disable_unprepare(ourport->clk);
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 		}
 	}
 

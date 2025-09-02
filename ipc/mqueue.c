@@ -372,7 +372,6 @@ static void mqueue_evict_inode(struct inode *inode)
 {
 	struct mqueue_inode_info *info;
 	struct user_struct *user;
-	unsigned long mq_bytes, mq_treesize;
 	struct ipc_namespace *ipc_ns;
 	struct msg_msg *msg, *nmsg;
 	LIST_HEAD(tmp_msg);
@@ -394,6 +393,7 @@ static void mqueue_evict_inode(struct inode *inode)
 		list_del(&msg->m_list);
 		free_msg(msg);
 	}
+<<<<<<< HEAD
 
 	/* Total amount of bytes accounted for the mqueue */
 	mq_treesize = info->attr.mq_maxmsg * sizeof(struct msg_msg) +
@@ -402,9 +402,21 @@ static void mqueue_evict_inode(struct inode *inode)
 
 	mq_bytes = mq_treesize + (info->attr.mq_maxmsg *
 				  info->attr.mq_msgsize);
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	user = info->user;
 	if (user) {
+		unsigned long mq_bytes, mq_treesize;
+
+		/* Total amount of bytes accounted for the mqueue */
+		mq_treesize = info->attr.mq_maxmsg * sizeof(struct msg_msg) +
+			min_t(unsigned int, info->attr.mq_maxmsg, MQ_PRIO_MAX) *
+			sizeof(struct posix_msg_tree_node);
+
+		mq_bytes = mq_treesize + (info->attr.mq_maxmsg *
+					  info->attr.mq_msgsize);
+
 		spin_lock(&mq_lock);
 		user->mq_bytes -= mq_bytes;
 		/*

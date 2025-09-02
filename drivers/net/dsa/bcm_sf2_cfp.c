@@ -134,12 +134,12 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 		return -EINVAL;
 
 	if (fs->location != RX_CLS_LOC_ANY &&
-	    test_bit(fs->location, priv->cfp.used))
-		return -EBUSY;
-
-	if (fs->location != RX_CLS_LOC_ANY &&
 	    fs->location > bcm_sf2_cfp_rule_size(priv))
 		return -EINVAL;
+
+	if (fs->location != RX_CLS_LOC_ANY &&
+	    test_bit(fs->location, priv->cfp.used))
+		return -EBUSY;
 
 	ip_frag = be32_to_cpu(fs->m_ext.data[0]);
 
@@ -333,7 +333,11 @@ static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port,
 	int ret;
 	u32 reg;
 
+<<<<<<< HEAD
 	if (loc >= CFP_NUM_RULES)
+=======
+	if (loc > bcm_sf2_cfp_rule_size(priv))
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 		return -EINVAL;
 
 	/* Refuse deletion of unused rules, and the default reserved rule */

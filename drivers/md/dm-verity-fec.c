@@ -29,7 +29,8 @@ bool verity_fec_is_enabled(struct dm_verity *v)
  */
 static inline struct dm_verity_fec_io *fec_io(struct dm_verity_io *io)
 {
-	return (struct dm_verity_fec_io *) verity_io_digest_end(io->v, io);
+	return (struct dm_verity_fec_io *)
+		((char *)io + io->v->ti->per_io_data_size - sizeof(struct dm_verity_fec_io));
 }
 
 /*
@@ -447,6 +448,11 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 
 	fio->level++;
 
+<<<<<<< HEAD
+=======
+	if (type == DM_VERITY_BLOCK_TYPE_METADATA)
+		block = block - v->hash_start + v->data_blocks;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	/*
 	 * For RS(M, N), the continuous FEC data is divided into blocks of N
@@ -563,6 +569,7 @@ void verity_fec_dtr(struct dm_verity *v)
 	mempool_destroy(f->rs_pool);
 	mempool_destroy(f->prealloc_pool);
 	mempool_destroy(f->extra_pool);
+	mempool_destroy(f->output_pool);
 	kmem_cache_destroy(f->cache);
 
 	if (f->data_bufio)

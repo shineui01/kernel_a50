@@ -64,55 +64,9 @@ static const char *handler[] = {
 
 int show_unhandled_signals = 0;
 
-/*
- * Dump out the contents of some kernel memory nicely...
- */
-static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
-		     unsigned long top)
-{
-	unsigned long first;
-	mm_segment_t fs;
-	int i;
-
-	/*
-	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.
-	 */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	printk("%s%s(0x%016lx to 0x%016lx)\n", lvl, str, bottom, top);
-
-	for (first = bottom & ~31; first < top; first += 32) {
-		unsigned long p;
-		char str[sizeof(" 12345678") * 8 + 1];
-
-		memset(str, ' ', sizeof(str));
-		str[sizeof(str) - 1] = '\0';
-
-		for (p = first, i = 0; i < (32 / 8)
-					&& p < top; i++, p += 8) {
-			if (p >= bottom && p < top) {
-				unsigned long val;
-
-				if (__get_user(val, (unsigned long *)p) == 0)
-					sprintf(str + i * 17, " %016lx", val);
-				else
-					sprintf(str + i * 17, " ????????????????");
-			}
-		}
-		printk("%s%04lx:%s\n", lvl, first & 0xffff, str);
-	}
-
-	set_fs(fs);
-}
-
 static void dump_backtrace_entry(unsigned long where)
 {
-	/*
-	 * Note that 'where' can have a physical address, but it's not handled.
-	 */
-	print_ip_sym(where);
+	printk(" %pS\n", (void *)where);
 }
 
 #ifdef CONFIG_SEC_DEBUG_AUTO_COMMENT
@@ -193,6 +147,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 #endif
 
 	printk("Call trace:\n");
+<<<<<<< HEAD
 	while (1) {
 		unsigned long stack;
 		int ret;
@@ -204,6 +159,9 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		}
 #endif
 
+=======
+	do {
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 		/* skip until specified stack frame */
 		if (!skip) {
 			dump_backtrace_entry(frame.pc);
@@ -220,6 +178,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 			dump_backtrace_entry(regs->pc);
 			dbg_snapshot_save_log(raw_smp_processor_id(), regs->pc);
 		}
+<<<<<<< HEAD
 		ret = unwind_frame(tsk, &frame);
 		if (ret < 0)
 			break;
@@ -232,6 +191,9 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		}
 		cnt++;
 	}
+=======
+	} while (!unwind_frame(tsk, &frame));
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	put_task_stack(tsk);
 }
@@ -416,7 +378,7 @@ void die(const char *str, struct pt_regs *regs, int err)
 	local_irq_restore(flags);
 
 	if (ret != NOTIFY_STOP)
-		do_exit(SIGSEGV);
+		make_task_dead(SIGSEGV);
 }
 
 void arm64_notify_die(const char *str, struct pt_regs *regs,
@@ -790,6 +752,7 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 		handler[reason], smp_processor_id(), esr,
 		esr_get_class_string(esr));
 
+<<<<<<< HEAD
 #ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
 	if (!user_mode(regs)) {
 		sec_debug_set_extra_info_fault(BAD_MODE_FAULT, (unsigned long)regs->pc, regs);
@@ -797,6 +760,8 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 	}
 #endif
 
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	local_irq_disable();
 	panic("bad mode");
 }

@@ -278,6 +278,10 @@ static void __vb2_plane_dmabuf_put(struct vb2_buffer *vb, struct vb2_plane *p)
 	p->mem_priv = NULL;
 	p->dbuf = NULL;
 	p->dbuf_mapped = 0;
+	p->bytesused = 0;
+	p->length = 0;
+	p->m.fd = 0;
+	p->data_offset = 0;
 }
 
 /**
@@ -1175,10 +1179,6 @@ static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
 
 		/* Release previously acquired memory if present */
 		__vb2_plane_dmabuf_put(vb, &vb->planes[plane]);
-		vb->planes[plane].bytesused = 0;
-		vb->planes[plane].length = 0;
-		vb->planes[plane].m.fd = 0;
-		vb->planes[plane].data_offset = 0;
 
 		/* Acquire each plane's memory */
 		mem_priv = call_ptr_memop(vb, attach_dmabuf,
@@ -1426,6 +1426,7 @@ static int vb2_start_streaming(struct vb2_queue *q)
 static void __qbuf_work(struct work_struct *work)
 {
 	struct vb2_buffer *vb;
+<<<<<<< HEAD
 	struct vb2_queue *q;
 
 	vb = container_of(work, struct vb2_buffer, qbuf_work);
@@ -1515,6 +1516,9 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 {
 	struct vb2_buffer *vb;
 	unsigned long flags;
+=======
+	enum vb2_buffer_state orig_state;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	int ret;
 
 	if (q->error) {
@@ -1546,6 +1550,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	 * Add to the queued buffers list, a buffer will stay on it until
 	 * dequeued in dqbuf.
 	 */
+	orig_state = vb->state;
 	list_add_tail(&vb->queued_entry, &q->queued_list);
 	q->queued_count++;
 	q->waiting_for_buffers = false;
@@ -1609,6 +1614,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	if (q->streaming && !q->start_streaming_called &&
 	    __get_num_ready_buffers(q) >= q->min_buffers_needed) {
 		ret = vb2_start_streaming(q);
+<<<<<<< HEAD
 		if (ret)
 			goto err;
 	}
@@ -1620,6 +1626,19 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	if (vb->out_fence) {
 		fd_install(vb->out_fence_fd, vb->sync_file->file);
 		vb->sync_file = NULL;
+=======
+		if (ret) {
+			/*
+			 * Since vb2_core_qbuf will return with an error,
+			 * we should return it to state DEQUEUED since
+			 * the error indicates that the buffer wasn't queued.
+			 */
+			list_del(&vb->queued_entry);
+			q->queued_count--;
+			vb->state = orig_state;
+			return ret;
+		}
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	}
 
 	dprintk(2, "qbuf of buffer %d succeeded\n", vb->index);

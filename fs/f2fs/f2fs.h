@@ -3817,6 +3817,7 @@ extern void f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned int rate,
 #define f2fs_build_fault_attr(sbi, rate, type)		do { } while (0)
 #endif
 
+<<<<<<< HEAD
 #endif
 
 static inline bool is_journalled_quota(struct f2fs_sb_info *sbi)
@@ -3831,3 +3832,8 @@ static inline bool is_journalled_quota(struct f2fs_sb_info *sbi)
 #endif
 	return false;
 }
+=======
+#define EFSBADCRC	EBADMSG		/* Bad CRC detected */
+#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
+
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332

@@ -1208,6 +1208,7 @@ static int dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 	int ret = 0;
 
 	/* Set external dma config: burst size, burst width */
+	memset(&cfg, 0, sizeof(cfg));
 	cfg.dst_addr = host->phy_regs + fifo_offset;
 	cfg.src_addr = cfg.dst_addr;
 	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -2607,9 +2608,40 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			}
 
 			if (cmd->data && err) {
+<<<<<<< HEAD
 				dw_mci_fifo_reset(host->dev, host);
 				dw_mci_stop_dma(host);
+=======
+				/*
+				 * During UHS tuning sequence, sending the stop
+				 * command after the response CRC error would
+				 * throw the system into a confused state
+				 * causing all future tuning phases to report
+				 * failure.
+				 *
+				 * In such case controller will move into a data
+				 * transfer state after a response error or
+				 * response CRC error. Let's let that finish
+				 * before trying to send a stop, so we'll go to
+				 * STATE_SENDING_DATA.
+				 *
+				 * Although letting the data transfer take place
+				 * will waste a bit of time (we already know
+				 * the command was bad), it can't cause any
+				 * errors since it's possible it would have
+				 * taken place anyway if this tasklet got
+				 * delayed. Allowing the transfer to take place
+				 * avoids races and keeps things simple.
+				 */
+				if (err != -ETIMEDOUT &&
+				    host->dir_status == DW_MCI_RECV_STATUS) {
+					state = STATE_SENDING_DATA;
+					continue;
+				}
+
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 				send_stop_abort(host, data);
+				dw_mci_stop_dma(host);
 				state = STATE_SENDING_STOP;
 				dw_mci_debug_req_log(host, host->mrq, STATE_REQ_CMD_PROCESS, state);
 				break;
@@ -2635,11 +2667,19 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			 * transfer complete; stopping the DMA and sending an
 			 * abort won't hurt.
 			 */
+<<<<<<< HEAD
 			if (test_and_clear_bit(EVENT_DATA_ERROR, &host->pending_events)) {
 				dw_mci_fifo_reset(host->dev, host);
 				dw_mci_stop_dma(host);
 				if (!(host->data_status & (SDMMC_INT_DRTO | SDMMC_INT_EBE)))
+=======
+			if (test_and_clear_bit(EVENT_DATA_ERROR,
+					       &host->pending_events)) {
+				if (!(host->data_status & (SDMMC_INT_DRTO |
+							   SDMMC_INT_EBE)))
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 					send_stop_abort(host, data);
+				dw_mci_stop_dma(host);
 				state = STATE_DATA_ERROR;
 				dw_mci_debug_req_log(host,
 						     host->mrq, STATE_REQ_DATA_PROCESS, state);
@@ -2672,11 +2712,19 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			 *
 			 * This has the advantage of sending the stop command.
 			 */
+<<<<<<< HEAD
 			if (test_and_clear_bit(EVENT_DATA_ERROR, &host->pending_events)) {
 				dw_mci_fifo_reset(host->dev, host);
 				dw_mci_stop_dma(host);
 				if (!(host->data_status & (SDMMC_INT_DRTO | SDMMC_INT_EBE)))
+=======
+			if (test_and_clear_bit(EVENT_DATA_ERROR,
+					       &host->pending_events)) {
+				if (!(host->data_status & (SDMMC_INT_DRTO |
+							   SDMMC_INT_EBE)))
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 					send_stop_abort(host, data);
+				dw_mci_stop_dma(host);
 				state = STATE_DATA_ERROR;
 				dw_mci_debug_req_log(host, host->mrq,
 						     STATE_REQ_DATA_PROCESS, state);
@@ -3599,8 +3647,8 @@ static int dw_mci_init_slot(struct dw_mci *host)
 	if (host->use_dma == TRANS_MODE_IDMAC) {
 		mmc->max_segs = host->ring_size;
 		mmc->max_blk_size = 65535;
-		mmc->max_seg_size = 0x1000;
-		mmc->max_req_size = mmc->max_seg_size * host->ring_size;
+		mmc->max_req_size = DW_MCI_DESC_DATA_LENGTH * host->ring_size;
+		mmc->max_seg_size = mmc->max_req_size;
 		mmc->max_blk_count = mmc->max_req_size / 512;
 	} else if (host->use_dma == TRANS_MODE_EDMAC) {
 		mmc->max_segs = 64;
@@ -4131,6 +4179,10 @@ int dw_mci_probe(struct dw_mci *host)
 	host->biu_clk = devm_clk_get(host->dev, "biu");
 	if (IS_ERR(host->biu_clk)) {
 		dev_dbg(host->dev, "biu clock not available\n");
+		ret = PTR_ERR(host->biu_clk);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
 	} else {
 		ret = clk_prepare_enable(host->biu_clk);
 		if (ret) {
@@ -4142,6 +4194,10 @@ int dw_mci_probe(struct dw_mci *host)
 	host->ciu_clk = devm_clk_get(host->dev, "ciu");
 	if (IS_ERR(host->ciu_clk)) {
 		dev_dbg(host->dev, "ciu clock not available\n");
+		ret = PTR_ERR(host->ciu_clk);
+		if (ret == -EPROBE_DEFER)
+			goto err_clk_biu;
+
 		host->bus_hz = host->pdata->bus_hz;
 	} else {
 		ret = clk_prepare_enable(host->ciu_clk);

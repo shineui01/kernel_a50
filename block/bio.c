@@ -312,7 +312,7 @@ static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	if (!parent->bi_status)
+	if (bio->bi_status && !parent->bi_status)
 		parent->bi_status = bio->bi_status;
 	bio_put(bio);
 	return parent;
@@ -1732,7 +1732,7 @@ void bio_set_pages_dirty(struct bio *bio)
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 
-		if (page && !PageCompound(page))
+		if (page)
 			set_page_dirty_lock(page);
 	}
 }
@@ -1799,7 +1799,7 @@ void bio_check_pages_dirty(struct bio *bio)
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 
-		if (PageDirty(page) || PageCompound(page)) {
+		if (PageDirty(page)) {
 			put_page(page);
 			bvec->bv_page = NULL;
 		} else {

@@ -425,6 +425,10 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 	struct pci_endpoint_test *test = to_endpoint_test(file->private_data);
 
 	mutex_lock(&test->mutex);
+
+	reinit_completion(&test->irq_raised);
+	test->last_irq = -ENODATA;
+
 	switch (cmd) {
 	case PCITEST_BAR:
 		bar = arg;
@@ -466,7 +470,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	int err;
 	int irq = 0;
 	int id;
-	char name[20];
+	char name[24];
 	enum pci_barno bar;
 	void __iomem *base;
 	struct device *dev = &pdev->dev;

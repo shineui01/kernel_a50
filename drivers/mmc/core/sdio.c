@@ -635,6 +635,8 @@ try_again:
 	if (host->ops->init_card)
 		host->ops->init_card(host, card);
 
+	card->ocr = ocr_card;
+
 	/*
 	 * If the host and card support UHS-I mode request the card
 	 * to switch to 1.8V signaling level.  No 1.8v signalling if
@@ -710,6 +712,7 @@ try_again:
 		goto finish;
 	}
 
+<<<<<<< HEAD
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
 	if (host->embedded_sdio_data.cccr)
 		memcpy(&card->cccr, host->embedded_sdio_data.cccr, sizeof(struct sdio_cccr));
@@ -731,6 +734,21 @@ try_again:
 			}
 		}
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
+=======
+	/*
+	 * Read the common registers. Note that we should try to
+	 * validate whether UHS would work or not.
+	 */
+	err = sdio_read_cccr(card, ocr);
+	if (err) {
+		mmc_sdio_resend_if_cond(host, card);
+		if (ocr & R4_18V_PRESENT) {
+			/* Retry init sequence, but without R4_18V_PRESENT. */
+			retries = 0;
+			goto try_again;
+		}
+		return err;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	}
 #endif
 
@@ -758,7 +776,7 @@ try_again:
 
 		card = oldcard;
 	}
-	card->ocr = ocr_card;
+
 	mmc_fixup_device(card, sdio_fixup_methods);
 
 	if (card->type == MMC_TYPE_SD_COMBO) {

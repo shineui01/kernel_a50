@@ -22,8 +22,13 @@ void f2fs_mark_inode_dirty_sync(struct inode *inode, bool sync)
 	if (is_inode_flag_set(inode, FI_NEW_INODE))
 		return;
 
+<<<<<<< HEAD
 	if (IS_I_VERSION(inode))
 		inode_inc_iversion(inode);
+=======
+	if (f2fs_readonly(F2FS_I_SB(inode)->sb))
+		return;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	if (f2fs_inode_dirtied(inode, sync))
 		return;
@@ -76,7 +81,7 @@ static int __written_first_block(struct f2fs_sb_info *sbi,
 	if (!__is_valid_data_blkaddr(addr))
 		return 1;
 	if (!f2fs_is_valid_blkaddr(sbi, addr, DATA_GENERIC))
-		return -EFAULT;
+		return -EFSCORRUPTED;
 	return 0;
 }
 
@@ -365,7 +370,7 @@ static int do_read_inode(struct inode *inode)
 
 	if (!sanity_check_inode(inode, node_page)) {
 		f2fs_put_page(node_page, 1);
-		return -EINVAL;
+		return -EFSCORRUPTED;
 	}
 
 	/* check data exist */

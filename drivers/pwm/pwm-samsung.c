@@ -316,6 +316,7 @@ static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 static void pwm_samsung_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	devm_kfree(chip->dev, pwm_get_chip_data(pwm));
+<<<<<<< HEAD
 }
 
 static void pwm_samsung_manual_update(struct samsung_pwm_chip *chip,
@@ -341,6 +342,8 @@ static void pwm_samsung_manual_update(struct samsung_pwm_chip *chip,
 		tcon |= TCON_START(tcon_chan);
 
 	writel(tcon, chip->base + REG_TCON);
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 }
 
 static int pwm_samsung_enable(struct pwm_chip *chip, struct pwm_device *pwm)

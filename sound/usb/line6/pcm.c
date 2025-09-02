@@ -567,6 +567,14 @@ int line6_init_pcm(struct usb_line6 *line6,
 	line6pcm->max_packet_size_out =
 		usb_maxpacket(line6->usbdev,
 			usb_sndisocpipe(line6->usbdev, ep_write), 1);
+<<<<<<< HEAD
+=======
+	if (!line6pcm->max_packet_size_in || !line6pcm->max_packet_size_out) {
+		dev_err(line6pcm->line6->ifcdev,
+			"cannot get proper max packet size\n");
+		return -EINVAL;
+	}
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	err = line6_create_audio_out_urbs(line6pcm);
 	if (err < 0)

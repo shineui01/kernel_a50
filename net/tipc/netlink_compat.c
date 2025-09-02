@@ -55,6 +55,7 @@ struct tipc_nl_compat_msg {
 	int rep_type;
 	int rep_size;
 	int req_type;
+	int req_size;
 	struct net *net;
 	struct sk_buff *rep;
 	struct tlv_desc *req;
@@ -100,6 +101,7 @@ static int tipc_add_tlv(struct sk_buff *skb, u16 type, void *data, u16 len)
 		return -EMSGSIZE;
 
 	skb_put(skb, TLV_SPACE(len));
+	memset(tlv, 0, TLV_SPACE(len));
 	tlv->tlv_type = htons(type);
 	tlv->tlv_len = htons(TLV_LENGTH(len));
 	if (len && data)
@@ -249,10 +251,12 @@ err_out:
 static int tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 				 struct tipc_nl_compat_msg *msg)
 {
-	int err;
+	struct nlmsghdr *nlh;
 	struct sk_buff *arg;
+	int err;
 
-	if (msg->req_type && !TLV_CHECK_TYPE(msg->req, msg->req_type))
+	if (msg->req_type && (!msg->req_size ||
+			      !TLV_CHECK_TYPE(msg->req, msg->req_type)))
 		return -EINVAL;
 
 	msg->rep = tipc_tlv_alloc(msg->rep_size);
@@ -277,6 +281,15 @@ static int tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 		msg->rep = NULL;
 		return -ENOMEM;
 	}
+
+	nlh = nlmsg_put(arg, 0, 0, tipc_genl_family.id, 0, NLM_F_MULTI);
+	if (!nlh) {
+		kfree_skb(arg);
+		kfree_skb(msg->rep);
+		msg->rep = NULL;
+		return -EMSGSIZE;
+	}
+	nlmsg_end(arg, nlh);
 
 	err = __tipc_nl_compat_dumpit(cmd, msg, arg);
 	if (err) {
@@ -345,7 +358,8 @@ static int tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
 {
 	int err;
 
-	if (msg->req_type && !TLV_CHECK_TYPE(msg->req, msg->req_type))
+	if (msg->req_type && (!msg->req_size ||
+			      !TLV_CHECK_TYPE(msg->req, msg->req_type)))
 		return -EINVAL;
 
 	err = __tipc_nl_compat_doit(cmd, msg);
@@ -649,7 +663,7 @@ static int tipc_nl_compat_link_dump(struct tipc_nl_compat_msg *msg,
 	if (err)
 		return err;
 
-	link_info.dest = nla_get_flag(link[TIPC_NLA_LINK_DEST]);
+	link_info.dest = htonl(nla_get_flag(link[TIPC_NLA_LINK_DEST]));
 	link_info.up = htonl(nla_get_flag(link[TIPC_NLA_LINK_UP]));
 	nla_strlcpy(link_info.str, link[TIPC_NLA_LINK_NAME],
 		    TIPC_MAX_LINK_NAME);
@@ -843,7 +857,7 @@ static int tipc_nl_compat_name_table_dump_header(struct tipc_nl_compat_msg *msg)
 	};
 
 	ntq = (struct tipc_name_table_query *)TLV_DATA(msg->req);
-	if (TLV_GET_DATA_LEN(msg->req) < sizeof(struct tipc_name_table_query))
+	if (TLV_GET_DATA_LEN(msg->req) < (int)sizeof(struct tipc_name_table_query))
 		return -EINVAL;
 
 	depth = ntohl(ntq->depth);
@@ -1274,8 +1288,8 @@ static int tipc_nl_compat_recv(struct sk_buff *skb, struct genl_info *info)
 		goto send;
 	}
 
-	len = nlmsg_attrlen(req_nlh, GENL_HDRLEN + TIPC_GENL_HDRLEN);
-	if (!len || !TLV_OK(msg.req, len)) {
+	msg.req_size = nlmsg_attrlen(req_nlh, GENL_HDRLEN + TIPC_GENL_HDRLEN);
+	if (msg.req_size && !TLV_OK(msg.req, msg.req_size)) {
 		msg.rep = tipc_get_err_tlv(TIPC_CFG_NOT_SUPPORTED);
 		err = -EOPNOTSUPP;
 		goto send;

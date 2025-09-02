@@ -203,7 +203,11 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 
 int __virt_addr_valid(const volatile void *kaddr)
 {
+<<<<<<< HEAD
 	unsigned long vaddr = (unsigned long)vaddr;
+=======
+	unsigned long vaddr = (unsigned long)kaddr;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	if ((vaddr < PAGE_OFFSET) || (vaddr >= MAP_BASE))
 		return 0;

@@ -344,7 +344,7 @@ struct x86_hw_tss {
 #define INVALID_IO_BITMAP_OFFSET	0x8000
 
 struct entry_stack {
-	unsigned long		words[64];
+	char	stack[PAGE_SIZE];
 };
 
 struct entry_stack_page {
@@ -510,15 +510,6 @@ struct thread_struct {
 	 * the end.
 	 */
 };
-
-/*
- * Thread-synchronous status.
- *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
- * have to worry about atomic accesses.
- */
-#define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
 
 /*
  * Set IOPL bits in EFLAGS from given mask
@@ -1001,4 +992,9 @@ enum taa_mitigations {
 	TAA_MITIGATION_TSX_DISABLED,
 };
 
+<<<<<<< HEAD
+=======
+extern bool gds_ucode_mitigated(void);
+
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 #endif /* _ASM_X86_PROCESSOR_H */

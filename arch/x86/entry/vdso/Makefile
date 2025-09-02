@@ -183,7 +183,11 @@ quiet_cmd_vdso = VDSO    $@
 
 VDSO_LDFLAGS = -shared $(call ld-option, --hash-style=both) \
 	$(call ld-option, --build-id) $(call ld-option, --eh-frame-hdr) \
+<<<<<<< HEAD
 	-Bsymbolic
+=======
+	-Bsymbolic -z noexecstack
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 GCOV_PROFILE := n
 
 #

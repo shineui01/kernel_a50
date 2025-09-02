@@ -30,7 +30,7 @@ static bool rtas_hp_event;
 unsigned long pseries_memory_block_size(void)
 {
 	struct device_node *np;
-	unsigned int memblock_size = MIN_MEMORY_BLOCK_SIZE;
+	u64 memblock_size = MIN_MEMORY_BLOCK_SIZE;
 	struct resource r;
 
 	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
@@ -452,8 +452,10 @@ static bool lmb_is_removable(struct of_drconf_cell *lmb)
 
 	for (i = 0; i < scns_per_block; i++) {
 		pfn = PFN_DOWN(phys_addr);
-		if (!pfn_present(pfn))
+		if (!pfn_present(pfn)) {
+			phys_addr += MIN_MEMORY_BLOCK_SIZE;
 			continue;
+		}
 
 		rc &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
 		phys_addr += MIN_MEMORY_BLOCK_SIZE;
@@ -571,7 +573,7 @@ static int dlpar_memory_remove_by_index(u32 drc_index, struct property *prop)
 	int lmb_found;
 	int i, rc;
 
-	pr_info("Attempting to hot-remove LMB, drc index %x\n", drc_index);
+	pr_debug("Attempting to hot-remove LMB, drc index %x\n", drc_index);
 
 	p = prop->value;
 	num_lmbs = *p++;
@@ -589,14 +591,15 @@ static int dlpar_memory_remove_by_index(u32 drc_index, struct property *prop)
 		}
 	}
 
-	if (!lmb_found)
+	if (!lmb_found) {
+		pr_debug("Failed to look up LMB for drc index %x\n", drc_index);
 		rc = -EINVAL;
-
-	if (rc)
-		pr_info("Failed to hot-remove memory at %llx\n",
-			lmbs[i].base_addr);
-	else
-		pr_info("Memory at %llx was hot-removed\n", lmbs[i].base_addr);
+	} else if (rc) {
+		pr_debug("Failed to hot-remove memory at %llx\n",
+			 lmbs[i].base_addr);
+	} else {
+		pr_debug("Memory at %llx was hot-removed\n", lmbs[i].base_addr);
+	}
 
 	return rc;
 }
@@ -873,8 +876,8 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add, struct property *prop)
 			if (!lmbs[i].reserved)
 				continue;
 
-			pr_info("Memory at %llx (drc index %x) was hot-added\n",
-				lmbs[i].base_addr, lmbs[i].drc_index);
+			pr_debug("Memory at %llx (drc index %x) was hot-added\n",
+				 lmbs[i].base_addr, lmbs[i].drc_index);
 			lmbs[i].reserved = 0;
 		}
 		rc = 0;

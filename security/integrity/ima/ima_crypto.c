@@ -432,7 +432,11 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 	loff_t i_size;
 	int rc;
 	struct file *f = file;
+<<<<<<< HEAD
 	bool new_file_instance = false, modified_flags = false;
+=======
+	bool new_file_instance = false;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	/*
 	 * For consistency, fail file's opened with the O_DIRECT flag on
@@ -450,6 +454,7 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 				O_TRUNC | O_CREAT | O_NOCTTY | O_EXCL);
 		flags |= O_RDONLY;
 		f = dentry_open(&file->f_path, flags, file->f_cred);
+<<<<<<< HEAD
 		if (IS_ERR(f)) {
 			/*
 			 * Cannot open the file again, lets modify f_flags
@@ -462,6 +467,12 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 		} else {
 			new_file_instance = true;
 		}
+=======
+		if (IS_ERR(f))
+			return PTR_ERR(f);
+
+		new_file_instance = true;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	}
 
 	i_size = i_size_read(file_inode(f));
@@ -476,8 +487,11 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 out:
 	if (new_file_instance)
 		fput(f);
+<<<<<<< HEAD
 	else if (modified_flags)
 		f->f_flags &= ~FMODE_READ;
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	return rc;
 }
 
@@ -699,6 +713,8 @@ static int __init ima_calc_boot_aggregate_tfm(char *digest,
 		ima_pcrread(i, pcr_i);
 		/* now accumulate with current aggregate */
 		rc = crypto_shash_update(shash, pcr_i, TPM_DIGEST_SIZE);
+		if (rc != 0)
+			return rc;
 	}
 	if (!rc)
 		crypto_shash_final(shash, digest);

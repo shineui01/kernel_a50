@@ -102,6 +102,21 @@ static const struct dmi_system_id rotated_screen[] = {
 		},
 	},
 	{
+<<<<<<< HEAD
+=======
+		.ident = "Teclast X98 Pro",
+		.matches = {
+			/*
+			 * Only match BIOS date, because the manufacturers
+			 * BIOS does not report the board name at all
+			 * (sometimes)...
+			 */
+			DMI_MATCH(DMI_BOARD_VENDOR, "TECLAST"),
+			DMI_MATCH(DMI_BIOS_DATE, "10/28/2015"),
+		},
+	},
+	{
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 		.ident = "WinBook TW100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "WinBook"),

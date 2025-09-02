@@ -24,6 +24,7 @@
 #include <linux/rcupdate.h>
 #include <linux/export.h>
 #include <linux/context_tracking.h>
+#include <linux/nospec.h>
 
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
@@ -373,7 +374,11 @@ static unsigned long task_seg_base(struct task_struct *task,
 		 */
 		mutex_lock(&task->mm->context.lock);
 		ldt = task->mm->context.ldt;
+<<<<<<< HEAD
 		if (unlikely(idx >= ldt->nr_entries))
+=======
+		if (unlikely(!ldt || idx >= ldt->nr_entries))
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 			base = 0;
 		else
 			base = get_desc_base(ldt->entries + idx);

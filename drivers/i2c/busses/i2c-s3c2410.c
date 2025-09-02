@@ -362,8 +362,17 @@ static bool is_ack(struct s3c24xx_i2c *i2c)
 	int tries;
 
 	for (tries = 50; tries; --tries) {
-		if (readl(i2c->regs + S3C2410_IICCON)
-			& S3C2410_IICCON_IRQPEND) {
+		unsigned long tmp = readl(i2c->regs + S3C2410_IICCON);
+
+		if (!(tmp & S3C2410_IICCON_ACKEN)) {
+			/*
+			 * Wait a bit for the bus to stabilize,
+			 * delay estimated experimentally.
+			 */
+			usleep_range(100, 200);
+			return true;
+		}
+		if (tmp & S3C2410_IICCON_IRQPEND) {
 			if (!(readl(i2c->regs + S3C2410_IICSTAT)
 				& S3C2410_IICSTAT_LASTBIT))
 				return true;
@@ -416,16 +425,6 @@ static void s3c24xx_i2c_message_start(struct s3c24xx_i2c *i2c,
 
 	stat |= S3C2410_IICSTAT_START;
 	writel(stat, i2c->regs + S3C2410_IICSTAT);
-
-	if (i2c->quirks & QUIRK_POLL) {
-		while ((i2c->msg_num != 0) && is_ack(i2c)) {
-			i2c_s3c_irq_nextbyte(i2c, stat);
-			stat = readl(i2c->regs + S3C2410_IICSTAT);
-
-			if (stat & S3C2410_IICSTAT_ARBITR)
-				dev_err(i2c->dev, "deal with arbitration loss\n");
-		}
-	}
 }
 
 static inline void s3c24xx_i2c_stop(struct s3c24xx_i2c *i2c, int ret)
@@ -620,9 +619,17 @@ static int i2c_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 				if (i2c->msg->flags & I2C_M_RD) {
 					/* cannot do this, the controller
 					 * forces us to send a new START
+<<<<<<< HEAD
 					 * when we change direction */
 
+=======
+					 * when we change direction
+					 */
+					dev_dbg(i2c->dev,
+						"missing START before write->read\n");
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 					s3c24xx_i2c_stop(i2c, -EINVAL);
+					break;
 				}
 
 				goto retry_write;
@@ -875,7 +882,7 @@ static void s3c24xx_i2c_wait_idle(struct s3c24xx_i2c *i2c)
 static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 			      struct i2c_msg *msgs, int num)
 {
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	int ret;
 
 	if (i2c->suspended)
@@ -899,8 +906,10 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	s3c24xx_i2c_message_start(i2c, msgs);
 
 	if (i2c->quirks & QUIRK_POLL) {
-		ret = i2c->msg_idx;
+		while ((i2c->msg_num != 0) && is_ack(i2c)) {
+			unsigned long stat = readl(i2c->regs + S3C2410_IICSTAT);
 
+<<<<<<< HEAD
 		if (ret != num)
 			dev_err(i2c->dev, "QUIRK_POLL incomplete xfer (%d)\n"
 				"I2C Stat Reg dump:\n"
@@ -909,12 +918,23 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 				, ret
 				, readl(i2c->regs + S3C2410_IICSTAT)
 				, readl(i2c->regs + S3C2410_IICCON));
+=======
+			i2c_s3c_irq_nextbyte(i2c, stat);
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
-		goto out;
+			stat = readl(i2c->regs + S3C2410_IICSTAT);
+			if (stat & S3C2410_IICSTAT_ARBITR)
+				dev_err(i2c->dev, "deal with arbitration loss\n");
+		}
+	} else {
+		timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, HZ * 5);
 	}
 
+<<<<<<< HEAD
 	timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, HZ * 1);
 
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	ret = i2c->msg_idx;
 
 	/* having these next two as dev_err() makes life very
@@ -1404,7 +1424,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	if (!(i2c->quirks & QUIRK_POLL)) {
 		i2c->irq = ret = platform_get_irq(pdev, 0);
-		if (ret <= 0) {
+		if (ret < 0) {
 			dev_err(&pdev->dev, "cannot find IRQ\n");
 			clk_unprepare(i2c->clk);
 			return ret;

@@ -208,7 +208,10 @@ static void tilcdc_fini(struct drm_device *dev)
 
 	drm_irq_uninstall(dev);
 	drm_mode_config_cleanup(dev);
+<<<<<<< HEAD
 	tilcdc_remove_external_device(dev);
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 	if (priv->clk)
 		clk_put(priv->clk);

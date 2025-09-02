@@ -45,7 +45,13 @@
 #define ARM64_SSBD				25
 #define ARM64_MISMATCHED_CACHE_TYPE		26
 #define ARM64_SSBS				27
+<<<<<<< HEAD
+=======
+#define ARM64_WORKAROUND_1188873		28
+#define ARM64_SPECTRE_BHB			29
+#define ARM64_WORKAROUND_1742098		30
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
-#define ARM64_NCAPS				28
+#define ARM64_NCAPS				31
 
 #endif /* __ASM_CPUCAPS_H */

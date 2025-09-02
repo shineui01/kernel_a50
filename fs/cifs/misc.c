@@ -334,6 +334,10 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 			cifs_dbg(VFS, "Length less than smb header size\n");
 		}
 		return -EIO;
+	} else if (total_read < sizeof(*smb) + 2 * smb->WordCount) {
+		cifs_dbg(VFS, "%s: can't read BCC due to invalid WordCount(%u)\n",
+			 __func__, smb->WordCount);
+		return -EIO;
 	}
 
 	/* otherwise, there is enough to get to the BCC */
@@ -473,6 +477,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 				set_bit(CIFS_INODE_PENDING_OPLOCK_BREAK,
 					&pCifsInode->flags);
 
+<<<<<<< HEAD
 				/*
 				 * Set flag if the server downgrades the oplock
 				 * to L2 else clear.
@@ -487,7 +492,12 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 					   &pCifsInode->flags);
 
 				cifs_queue_oplock_break(netfile);
+=======
+				netfile->oplock_epoch = 0;
+				netfile->oplock_level = pSMB->OplockLevel;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 				netfile->oplock_break_cancelled = false;
+				cifs_queue_oplock_break(netfile);
 
 				spin_unlock(&tcon->open_file_lock);
 				spin_unlock(&cifs_tcp_ses_lock);

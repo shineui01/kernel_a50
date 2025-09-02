@@ -45,7 +45,11 @@
 #include <linux/sched/clock.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
+<<<<<<< HEAD
 #include <linux/debug-snapshot.h>
+=======
+#include <linux/random.h>
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -504,8 +508,8 @@ static int calc_wheel_index(unsigned long expires, unsigned long clk)
 		 * Force expire obscene large timeouts to expire at the
 		 * capacity limit of the wheel.
 		 */
-		if (expires >= WHEEL_TIMEOUT_CUTOFF)
-			expires = WHEEL_TIMEOUT_MAX;
+		if (delta >= WHEEL_TIMEOUT_CUTOFF)
+			expires = clk + WHEEL_TIMEOUT_MAX;
 
 		idx = calc_index(expires, LVL_DEPTH - 1);
 	}

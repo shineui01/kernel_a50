@@ -451,11 +451,14 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 		pgd = pgd_offset_k(address);
 	else
 		pgd = pgd_offset_gate(mm, address);
-	BUG_ON(pgd_none(*pgd));
+	if (pgd_none(*pgd))
+		return -EFAULT;
 	p4d = p4d_offset(pgd, address);
-	BUG_ON(p4d_none(*p4d));
+	if (p4d_none(*p4d))
+		return -EFAULT;
 	pud = pud_offset(p4d, address);
-	BUG_ON(pud_none(*pud));
+	if (pud_none(*pud))
+		return -EFAULT;
 	pmd = pmd_offset(pud, address);
 	if (!pmd_present(*pmd))
 		return -EFAULT;
@@ -700,7 +703,11 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			if (!vma || check_vma_flags(vma, gup_flags))
 				return i ? : -EFAULT;
 			if (is_vm_hugetlb_page(vma)) {
+<<<<<<< HEAD
 			if (should_force_cow_break(vma, foll_flags))
+=======
+				if (should_force_cow_break(vma, foll_flags))
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 					foll_flags |= FOLL_WRITE;
 				i = follow_hugetlb_page(mm, vma, pages, vmas,
 						&start, &nr_pages, i,
@@ -709,7 +716,11 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			}
 		}
 
+<<<<<<< HEAD
 	if (should_force_cow_break(vma, foll_flags))
+=======
+		if (should_force_cow_break(vma, foll_flags))
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 			foll_flags |= FOLL_WRITE;
 
 retry:
@@ -1379,7 +1390,8 @@ static inline pte_t gup_get_pte(pte_t *ptep)
 }
 #endif
 
-static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
+static void __maybe_unused undo_dev_pagemap(int *nr, int nr_start,
+					    struct page **pages)
 {
 	while ((*nr) - nr_start) {
 		struct page *page = pages[--(*nr)];
@@ -1806,9 +1818,13 @@ bool gup_fast_permitted(unsigned long start, int nr_pages, int write)
 
 /*
  * Like get_user_pages_fast() except it's IRQ-safe in that it won't fall back to
+<<<<<<< HEAD
  * the regular GUP.
  * Note a difference with get_user_pages_fast: this always returns the
  * number of pages pinned, 0 if no pages were pinned.
+=======
+ * the regular GUP. It will only return non-negative values.
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
  *
  * Careful, careful! COW breaking can go either way, so a non-write
  * access can get ambiguous page results. If you call this function without

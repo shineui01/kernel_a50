@@ -298,6 +298,10 @@ static void mtk_drm_kms_deinit(struct drm_device *drm)
 	struct mtk_drm_private *private = drm->dev_private;
 
 	drm_kms_helper_poll_fini(drm);
+	drm_atomic_helper_shutdown(drm);
+
+	if (private->dma_parms_allocated)
+		private->dma_dev->dma_parms = NULL;
 
 	if (private->dma_parms_allocated)
 		private->dma_dev->dma_parms = NULL;
@@ -537,8 +541,13 @@ err_pm:
 	pm_runtime_disable(dev);
 err_node:
 	of_node_put(private->mutex_node);
-	for (i = 0; i < DDP_COMPONENT_ID_MAX; i++)
+	for (i = 0; i < DDP_COMPONENT_ID_MAX; i++) {
 		of_node_put(private->comp_node[i]);
+		if (private->ddp_comp[i]) {
+			put_device(private->ddp_comp[i]->larb_dev);
+			private->ddp_comp[i] = NULL;
+		}
+	}
 	return ret;
 }
 

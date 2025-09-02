@@ -11,7 +11,10 @@
 #include <linux/wait.h>
 #include <linux/hash.h>
 #include <linux/kthread.h>
+<<<<<<< HEAD
 #include <linux/freezer.h>
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 #include <linux/poll.h>
 
 void __init_waitqueue_head(struct wait_queue_head *wq_head, const char *name, struct lock_class_key *key)

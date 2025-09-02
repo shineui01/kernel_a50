@@ -256,12 +256,18 @@ obj-$(CONFIG_UCS2_STRING) += ucs2_string.o
 obj-$(CONFIG_UBSAN) += ubsan.o
 
 UBSAN_SANITIZE_ubsan.o := n
+KASAN_SANITIZE_ubsan.o := n
+CFLAGS_ubsan.o := $(call cc-option, -fno-stack-protector) $(DISABLE_STACKLEAK_PLUGIN)
 
 obj-$(CONFIG_SBITMAP) += sbitmap.o
 
 obj-$(CONFIG_PARMAN) += parman.o
 
+<<<<<<< HEAD
 obj-$(CONFIG_KAIR) += kair.o
 
 obj-$(CONFIG_DEBUG_SNAPSHOT) += debug-snapshot.o debug-snapshot-log.o debug-snapshot-utils.o \
 				debug-snapshot-pstore.o debug-snapshot-sysfs.o debug-snapshot-helper.o
+=======
+obj-y += crypto/
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332

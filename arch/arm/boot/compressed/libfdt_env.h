@@ -2,11 +2,17 @@
 #ifndef _ARM_LIBFDT_ENV_H
 #define _ARM_LIBFDT_ENV_H
 
+#include <linux/limits.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <asm/byteorder.h>
 
+<<<<<<< HEAD
 #define INT_MAX			((int)(~0U>>1))
+=======
+#define INT32_MAX	S32_MAX
+#define UINT32_MAX	U32_MAX
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 
 typedef __be16 fdt16_t;
 typedef __be32 fdt32_t;

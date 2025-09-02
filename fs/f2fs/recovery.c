@@ -241,11 +241,14 @@ static int recover_inode(struct inode *inode, struct page *page)
 	int err;
 
 	inode->i_mode = le16_to_cpu(raw->i_mode);
+<<<<<<< HEAD
 
 	err = recover_quota_data(inode, page);
 	if (err)
 		return err;
 
+=======
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 	i_uid_write(inode, le32_to_cpu(raw->i_uid));
 	i_gid_write(inode, le32_to_cpu(raw->i_gid));
 
@@ -254,6 +257,7 @@ static int recover_inode(struct inode *inode, struct page *page)
 			F2FS_FITS_IN_INODE(raw, le16_to_cpu(raw->i_extra_isize),
 								i_projid)) {
 			projid_t i_projid;
+<<<<<<< HEAD
 			kprojid_t kprojid;
 
 			i_projid = (projid_t)le32_to_cpu(raw->i_projid);
@@ -266,6 +270,12 @@ static int recover_inode(struct inode *inode, struct page *page)
 					return err;
 				F2FS_I(inode)->i_projid = kprojid;
 			}
+=======
+
+			i_projid = (projid_t)le32_to_cpu(raw->i_projid);
+			F2FS_I(inode)->i_projid =
+				make_kprojid(&init_user_ns, i_projid);
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 		}
 	}
 
@@ -284,6 +294,8 @@ static int recover_inode(struct inode *inode, struct page *page)
 				le16_to_cpu(raw->i_gc_failures);
 
 	recover_inline_flags(inode, raw);
+
+	f2fs_mark_inode_dirty_sync(inode, true);
 
 	f2fs_mark_inode_dirty_sync(inode, true);
 
@@ -552,7 +564,11 @@ retry_dn:
 			"Inconsistent ofs_of_node, ino:%lu, ofs:%u, %u",
 			inode->i_ino, ofs_of_node(dn.node_page),
 			ofs_of_node(page));
+<<<<<<< HEAD
 		err = -EFAULT;
+=======
+		err = -EFSCORRUPTED;
+>>>>>>> fd5b0e89e416dffc9b530f2100c03123c03dd332
 		goto err;
 	}
 
